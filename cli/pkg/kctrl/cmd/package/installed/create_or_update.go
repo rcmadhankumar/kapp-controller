@@ -390,7 +390,13 @@ func (o CreateOrUpdateOptions) update(client kubernetes.Interface, kcClient kccl
 		}
 		err = o.waitForAppPause(kcClient)
 		if err != nil {
-			return err
+			appNotFoundError := fmt.Sprintf("Waiting for app '%s' in namespace '%s' to be paused: apps.kappctrl.k14s.io \"%s\" not found", o.Name, o.NamespaceFlags.Name, o.Name)
+			switch err.Error() {
+			case appNotFoundError:
+				break
+			default:
+				return err
+			}
 		}
 		reconciliationPaused = true
 

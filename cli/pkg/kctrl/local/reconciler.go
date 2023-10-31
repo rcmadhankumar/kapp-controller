@@ -5,6 +5,7 @@ package local
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	gourl "net/url"
 	"os"
@@ -16,6 +17,11 @@ import (
 	fakedpkg "github.com/vmware-tanzu/carvel-kapp-controller/pkg/apiserver/client/clientset/versioned/fake"
 	"github.com/vmware-tanzu/carvel-kapp-controller/pkg/app"
 	fakekc "github.com/vmware-tanzu/carvel-kapp-controller/pkg/client/clientset/versioned/fake"
+	"gopkg.in/yaml.v2"
+
+	// "github.com/vmware-tanzu/carvel-kapp-controller/pkg/packageinstall"
+
+	// fakekc "github.com/vmware-tanzu/carvel-kapp-controller/pkg/client/clientset/versioned/fake"
 	kcconfig "github.com/vmware-tanzu/carvel-kapp-controller/pkg/config"
 	"github.com/vmware-tanzu/carvel-kapp-controller/pkg/exec"
 	"github.com/vmware-tanzu/carvel-kapp-controller/pkg/metrics"
@@ -57,6 +63,7 @@ type ReconcileOpts struct {
 func (o *Reconciler) Reconcile(configs Configs, opts ReconcileOpts) error {
 	var objs []runtime.Object
 	var appRes kcv1alpha1.App
+	// var existingApp kcv1alpha1.App
 	var primaryAnns map[string]string
 
 	if len(configs.Apps) > 0 {
@@ -65,7 +72,9 @@ func (o *Reconciler) Reconcile(configs Configs, opts ReconcileOpts) error {
 		if opts.Delete {
 			appRes.DeletionTimestamp = &metav1.Time{time.Now()}
 		}
-		objs = append(objs, &appRes)
+		// objs2 = append(objs, &appRes)
+		// objs = append(objs, configs.AppsAsObjects()...)
+		fmt.Printf("Runtime Objects: %+v", objs)
 	}
 
 	if len(configs.PkgInstalls) > 0 {
@@ -74,12 +83,30 @@ func (o *Reconciler) Reconcile(configs Configs, opts ReconcileOpts) error {
 		// TODO delete does not delete because App CR does not exist in memory
 		if opts.Delete {
 			pkgiRes.DeletionTimestamp = &metav1.Time{time.Now()}
+			existingApp, err := packageinstall.NewApp(&kcv1alpha1.App{}, &configs.PkgInstalls[0], configs.Pkgs[0])
+			existingApp.DeletionTimestamp = &metav1.Time{time.Now()}
+
+			if err != nil {
+				fmt.Printf("APP CR creation failed!")
+			}
+			marshaled, err := json.MarshalIndent(*existingApp, "", "   ")
+			if err != nil {
+				fmt.Printf("marshaling error: %s", err)
+			}
+			fmt.Println("\n existingApp: %s ", string(marshaled))
+			objs = append(objs, &pkgiRes)
+			objs = append(objs, existingApp)
+		} else {
+			objs = append(objs, &pkgiRes)
 		}
-		objs = append(objs, &pkgiRes)
 
 		// Specifies underlying app resource
 		appRes.Name = pkgiRes.Name
 		appRes.Namespace = pkgiRes.Namespace
+		// if opts.Delete {
+		// 	appRes.DeletionTimestamp = &metav1.Time{time.Now()}
+		// 	objs = append(objs, appRes.DeepCopy())
+		// }
 	}
 
 	var coreClient kubernetes.Interface
@@ -103,6 +130,15 @@ func (o *Reconciler) Reconcile(configs Configs, opts ReconcileOpts) error {
 		localSecrets:    &localSecrets{configs.Secrets},
 		localConfigMaps: configs.ConfigMaps,
 	}
+
+	marshaled, err := json.MarshalIndent(objs, "", "   ")
+	if err != nil {
+		fmt.Printf("marshaling error: %s", err)
+	}
+	fmt.Println("----- objs ------")
+	fmt.Printf(string(marshaled))
+	fmt.Printf("--------------------")
+	// appClient := fakekc.NewSimpleClientset(objs2...)
 	kcClient := fakekc.NewSimpleClientset(objs...)
 	dpkgClient := fakedpkg.NewSimpleClientset(configs.PkgsAsObjects()...)
 
@@ -125,7 +161,24 @@ func (o *Reconciler) Reconcile(configs Configs, opts ReconcileOpts) error {
 		}
 	}
 
+	err = kcClient.PackagingV1alpha1().PackageInstalls("pkg-standalone").Delete(
+		context.Background(), "pkg-standalone-demo", metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("\n ********* Deletion of package install err: %+v ", err)
+
 	var reconcileErr error
+
+	// // TODO is there a better way to deal with service accounts?
+	// // TODO do anything with reconcile result?
+	// _, reconcileErr = appReconciler.Reconcile(context.TODO(), reconcile.Request{
+	// 	NamespacedName: types.NamespacedName{
+	// 		Name:      appRes.Name,
+	// 		Namespace: appRes.Namespace,
+	// 	},
+	// })
 
 	if len(configs.PkgInstalls) > 0 {
 		_, reconcileErr = pkgiReconciler.Reconcile(context.TODO(), reconcile.Request{
@@ -134,10 +187,22 @@ func (o *Reconciler) Reconcile(configs Configs, opts ReconcileOpts) error {
 				Namespace: configs.PkgInstalls[0].Namespace,
 			},
 		})
+		fmt.Printf("\n  = = = = = = = == =  = == = = = = = = = = = = > reconciler error1: %+v", reconcileErr)
 	}
 
-	// TODO is there a better way to deal with service accounts?
-	// TODO do anything with reconcile result?
+	appR, err := kcClient.KappctrlV1alpha1().Apps("pkg-standalone").Get(context.Background(), "pkg-standalone-demo", metav1.GetOptions{})
+	if err == nil {
+		bs, err := yaml.Marshal(appR)
+		if err != nil {
+			fmt.Printf("Marshaling App CR: %s", err)
+		}
+
+		fmt.Printf(" \n ****************  \n App after package install is  reconciled : \n %+s", string(bs))
+	}
+
+	fmt.Printf("\n ******** App after package install is  reconciled : err: %+v", err)
+	// // TODO is there a better way to deal with service accounts?
+	// // TODO do anything with reconcile result?
 	_, reconcileErr = appReconciler.Reconcile(context.TODO(), reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      appRes.Name,
@@ -146,6 +211,8 @@ func (o *Reconciler) Reconcile(configs Configs, opts ReconcileOpts) error {
 	})
 
 	// One more time to get successful or failed status
+
+	fmt.Printf("\n  = = = = = = = == =  = == = = = = = = = = = = > reconciler error2: %+v", reconcileErr)
 	if len(configs.PkgInstalls) > 0 {
 		_, reconcileErr = pkgiReconciler.Reconcile(context.TODO(), reconcile.Request{
 			NamespacedName: types.NamespacedName{
@@ -153,6 +220,7 @@ func (o *Reconciler) Reconcile(configs Configs, opts ReconcileOpts) error {
 				Namespace: configs.PkgInstalls[0].Namespace,
 			},
 		})
+		fmt.Printf("\n  = = = = = = = == =  = == = = = = = = = = = = > reconciler error3: %+v", reconcileErr)
 	}
 
 	if opts.AfterAppReconcile != nil {
@@ -222,6 +290,17 @@ func (o *Reconciler) newReconcilers(
 		KbldAllowBuild:   opts.KbldBuild, // only for CLI mode
 		CmdRunner:        o.cmdRunner,
 	}
+
+	// appR, err := appClient.KappctrlV1alpha1().Apps("pkg-standalone").Get(context.Background(), "pkg-standalone-demo", metav1.GetOptions{})
+	// if err == nil {
+	// 	bs, err := yaml.Marshal(appR)
+	// 	if err != nil {
+	// 		fmt.Printf("Marshaling App CR: %s", err)
+	// 	}
+
+	// 	fmt.Printf(" = = = = = = = = \n App while creating reconciler: \n %+s", string(bs))
+	// }
+
 	appReconciler := app.NewReconciler(kcClient, runLog.WithName("app"),
 		appFactory, refTracker, updateStatusTracker)
 

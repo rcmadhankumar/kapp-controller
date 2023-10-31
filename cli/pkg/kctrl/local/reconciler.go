@@ -5,6 +5,7 @@ package local
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	gourl "net/url"
 	"os"
@@ -65,7 +66,6 @@ func (o *Reconciler) Reconcile(configs Configs, opts ReconcileOpts) error {
 		if opts.Delete {
 			appRes.DeletionTimestamp = &metav1.Time{time.Now()}
 		}
-		objs = append(objs, &appRes)
 	}
 
 	if len(configs.PkgInstalls) > 0 {
@@ -74,8 +74,23 @@ func (o *Reconciler) Reconcile(configs Configs, opts ReconcileOpts) error {
 		// TODO delete does not delete because App CR does not exist in memory
 		if opts.Delete {
 			pkgiRes.DeletionTimestamp = &metav1.Time{time.Now()}
+			existingApp, err := packageinstall.NewApp(&kcv1alpha1.App{}, &configs.PkgInstalls[0], configs.Pkgs[0])
+			existingApp.DeletionTimestamp = &metav1.Time{time.Now()}
+
+			if err != nil {
+				fmt.Printf("APP CR creation failed!")
+			}
+			marshaled, err := json.MarshalIndent(*existingApp, "", "   ")
+			if err != nil {
+				fmt.Printf("marshaling error: %s", err)
+			}
+			fmt.Println("\n existingApp: %s ", string(marshaled))
+
+			objs = append(objs, &pkgiRes)
+			objs = append(objs, existingApp)
+		} else {
+			objs = append(objs, &pkgiRes)
 		}
-		objs = append(objs, &pkgiRes)
 
 		// Specifies underlying app resource
 		appRes.Name = pkgiRes.Name
@@ -103,6 +118,7 @@ func (o *Reconciler) Reconcile(configs Configs, opts ReconcileOpts) error {
 		localSecrets:    &localSecrets{configs.Secrets},
 		localConfigMaps: configs.ConfigMaps,
 	}
+
 	kcClient := fakekc.NewSimpleClientset(objs...)
 	dpkgClient := fakedpkg.NewSimpleClientset(configs.PkgsAsObjects()...)
 
@@ -222,6 +238,7 @@ func (o *Reconciler) newReconcilers(
 		KbldAllowBuild:   opts.KbldBuild, // only for CLI mode
 		CmdRunner:        o.cmdRunner,
 	}
+
 	appReconciler := app.NewReconciler(kcClient, runLog.WithName("app"),
 		appFactory, refTracker, updateStatusTracker)
 

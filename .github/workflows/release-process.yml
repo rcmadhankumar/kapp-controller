@@ -10,6 +10,10 @@ jobs:
   kapp-controller-release:
     name: kapp-controller release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
       - name: Check out code
         uses: actions/checkout@v3.5.2

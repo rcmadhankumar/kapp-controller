@@ -102,7 +102,7 @@ jobs:
 
       - name: Sign checksums.txt
         run: |
-          cosign sign-blob ./tmp/checksums.txt --output-certificate ./tmp/checksums.pem  --output-signature ./tmp/checksums.sig
+          cosign sign-blob --yes ./tmp/checksums.txt --output-certificate ./tmp/checksums.pem  --output-signature ./tmp/checksums.sig
 
       - name: Verify checksums signature
         run: |

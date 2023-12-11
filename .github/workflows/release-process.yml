@@ -145,6 +145,9 @@ jobs:
             const url = require('url');
             const https = require('https');
             checksums = {}
+            console.log(releases)
+            console.log(releases["data"])
+            console.log(github.ref)
             for (const r of releases["data"]) {
               if (r.draft && `refs/tags/${r.tag_name}` == "${{ github.ref }}") {
                 for (const asset of r.assets) {

@@ -120,7 +120,9 @@ jobs:
           body_path: ./tmp/checksums-formatted.txt
           files: |
             ./release/*
-            ./tmp/checksum*
+            ./tmp/checksums.txt
+            ./tmp/checksums.pem
+            ./tmp/checksums.sig
           draft: true
           prerelease: true
 

@@ -120,7 +120,7 @@ jobs:
           body_path: ./tmp/checksums-formatted.txt
           files: |
             ./release/*
-            ./tmp/*
+            ./tmp/checksum*
           draft: true
           prerelease: true
 

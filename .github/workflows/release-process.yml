@@ -100,7 +100,7 @@ jobs:
           cat ./tmp/checksums.txt | tee -a ./tmp/checksums-formatted.txt
           echo '```' | tee -a ./tmp/checksums-formatted.txt
 
-      - name: Sign checksums.txt
+      - name: Sign checksums.txt - test
         run: |
           cosign sign-blob --yes ./tmp/checksums.txt --output-certificate release/checksums.pem  --output-signature release/checksums.sig
 

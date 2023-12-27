@@ -200,16 +200,16 @@ jobs:
 
           \`\`\`shell
           # Download the checksums file, certificate, and signature
-          curl -LO https://github.com\${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/${{ github.event.release.tag_name }}/checksums.txt
-          curl -LO https://github.com\${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/${{ github.event.release.tag_name }}/checksums.txt.pem
-          curl -LO https://github.com\${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/${{ github.event.release.tag_name }}/checksums.txt.sig
+          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/$RELEASE_TAG/checksums.txt
+          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download//$RELEASE_TAG/checksums.txt.pem
+          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download//$RELEASE_TAG/checksums.txt.sig
 
           # Verify the checksums file
           cosign verify-blob checksums.txt \
-            --certificate checksums.txt.pem \
-            --signature checksums.txt.sig \
-            --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
-            --certificate-oidc-issuer=https://token.actions.githubusercontent.com
+          --certificate checksums.txt.pem \
+          --signature checksums.txt.sig \
+          --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
+          --certificate-oidc-issuer=https://token.actions.githubusercontent.com 
           \`\`\`
 
           ### Verify binary integrity
@@ -218,7 +218,7 @@ jobs:
 
           \`\`\`shell
           # Download the binary
-          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/${{ github.event.release.tag_name }}/kctrl-linux-amd64
+          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/$RELEASE_TAG/kctrl-linux-amd64
 
           # Verify the binary using the checksums file
           sha256sum -c checksums.txt --ignore-missing
@@ -240,15 +240,15 @@ jobs:
           \`\`\`shell
           # Verifying kapp-controller image
           cosign verify $KAPP_CONTROLLER_IMAGE \
-            --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
-            --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
-            -o text
+          --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
+          --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+          -o text
 
           # Verifying kapp-controller-package-bundle image
           cosign verify $KAPP_CONTROLLER_PACKAGE_BUNDLE_IMAGE \
-            --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
-            --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
-            -o text
+          --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
+          --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+          -o text \
           \`\`\`
           "
 

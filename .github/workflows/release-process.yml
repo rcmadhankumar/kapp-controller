@@ -193,22 +193,22 @@ jobs:
           KAPP_CONTROLLER_IMAGE=$(yq e '.spec.template.spec.containers[] | select(.name == "kapp-controller") | .image' release/release.yml)
           KAPP_CONTROLLER_PACKAGE_BUNDLE_IMAGE=$(yq e '.spec.template.spec.fetch[0].imgpkgBundle.image' release/package.yml)
 
-          RELEASE_NOTES=$(cat <<EOF
+          RELEASE_NOTES="
           ### Verify checksums file signature
 
           The checksums file provided within the artifacts attached to this release is signed using [Cosign](https://docs.sigstore.dev/cosign/overview/) with GitHub OIDC. To validate the signature of this file, run the following commands:
 
           \`\`\`shell
           # Download the checksums file, certificate, and signature
-          curl -LO https://github.com/\${{ env.GITHUB_REPOSITORY }}/releases/download/\${{ github.event.release.tag_name }}/checksums.txt
-          curl -LO https://github.com/\${{ env.GITHUB_REPOSITORY }}/releases/download/\${{ github.event.release.tag_name }}/checksums.txt.pem
-          curl -LO https://github.com/\${{ env.GITHUB_REPOSITORY }}/releases/download/\${{ github.event.release.tag_name }}/checksums.txt.sig
+          curl -LO https://github.com\${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/${{ github.event.release.tag_name }}/checksums.txt
+          curl -LO https://github.com\${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/${{ github.event.release.tag_name }}/checksums.txt.pem
+          curl -LO https://github.com\${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/${{ github.event.release.tag_name }}/checksums.txt.sig
 
           # Verify the checksums file
           cosign verify-blob checksums.txt \
             --certificate checksums.txt.pem \
             --signature checksums.txt.sig \
-            --certificate-identity-regexp=https://github.com/\${{ env.GITHUB_REPOSITORY_OWNER }} \
+            --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
             --certificate-oidc-issuer=https://token.actions.githubusercontent.com
           \`\`\`
 
@@ -218,7 +218,7 @@ jobs:
 
           \`\`\`shell
           # Download the binary
-          curl -LO https://github.com/\${{ env.GITHUB_REPOSITORY }}/releases/download/\${{ github.event.release.tag_name }}/kctrl-linux-amd64
+          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/${{ github.event.release.tag_name }}/kctrl-linux-amd64
 
           # Verify the binary using the checksums file
           sha256sum -c checksums.txt --ignore-missing
@@ -230,8 +230,8 @@ jobs:
 
           ### OCI Image URLs
 
-          - \${KAPP_CONTROLLER_IMAGE}
-          - \${KAPP_CONTROLLER_PACKAGE_BUNDLE_IMAGE}
+          - $KAPP_CONTROLLER_IMAGE
+          - $KAPP_CONTROLLER_PACKAGE_BUNDLE_IMAGE
 
           ### Verify container image signature
 
@@ -239,19 +239,18 @@ jobs:
 
           \`\`\`shell
           # Verifying kapp-controller image
-          cosign verify \${KAPP_CONTROLLER_IMAGE} \
-            --certificate-identity-regexp=https://github.com/\${{ env.GITHUB_REPOSITORY_OWNER }} \
+          cosign verify $KAPP_CONTROLLER_IMAGE \
+            --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
             --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
             -o text
 
           # Verifying kapp-controller-package-bundle image
-          cosign verify \${KAPP_CONTROLLER_PACKAGE_BUNDLE_IMAGE} \
-            --certificate-identity-regexp=https://github.com/\${{ env.GITHUB_REPOSITORY_OWNER }} \
+          cosign verify $KAPP_CONTROLLER_PACKAGE_BUNDLE_IMAGE \
+            --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
             --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
             -o text
           \`\`\`
-          EOF
-          )
+          "
 
           echo "$RELEASE_NOTES" > release_notes.txt
           gh release edit $RELEASE_TAG --notes-file release_notes.txt

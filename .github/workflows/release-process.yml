@@ -198,11 +198,11 @@ jobs:
 
           The checksums file provided within the artifacts attached to this release is signed using [Cosign](https://docs.sigstore.dev/cosign/overview/) with GitHub OIDC. To validate the signature of this file, run the following commands:
 
-          \`\`\`shell
+          ```shell
           # Download the checksums file, certificate, and signature
           curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/$RELEASE_TAG/checksums.txt
-          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download//$RELEASE_TAG/checksums.txt.pem
-          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download//$RELEASE_TAG/checksums.txt.sig
+          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/$RELEASE_TAG/checksums.txt.pem
+          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/$RELEASE_TAG/checksums.txt.sig
 
           # Verify the checksums file
           cosign verify-blob checksums.txt \
@@ -210,19 +210,19 @@ jobs:
           --signature checksums.txt.sig \
           --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
           --certificate-oidc-issuer=https://token.actions.githubusercontent.com 
-          \`\`\`
+          ```
 
           ### Verify binary integrity
 
           To verify the integrity of the downloaded binary, you can utilize the checksums file after having validated its signature. For instance, if you are using Linux on an AMD64 architecture:
 
-          \`\`\`shell
+          ```shell
           # Download the binary
           curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/$RELEASE_TAG/kctrl-linux-amd64
 
           # Verify the binary using the checksums file
           sha256sum -c checksums.txt --ignore-missing
-          \`\`\`
+          ```
 
           ## Container Images
 
@@ -237,7 +237,7 @@ jobs:
 
           The container images are signed using [Cosign](https://docs.sigstore.dev/cosign/overview/) with GitHub OIDC. To validate the signature of OCI images, run the following commands:
 
-          \`\`\`shell
+          ```shell
           # Verifying kapp-controller image
           cosign verify $KAPP_CONTROLLER_IMAGE \
           --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
@@ -249,7 +249,7 @@ jobs:
           --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
           --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
           -o text \
-          \`\`\`
+          ```
           "
 
           echo "$RELEASE_NOTES" > release_notes.txt

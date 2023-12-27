@@ -67,7 +67,7 @@ jobs:
           image_url=`yq e '.spec.template.spec.containers[] | select(.name == "kapp-controller") | .image' release/release.yml`
           cosign verify \
             $image_url \
-            --certificate-identity-regexp=https://github.com/carvel-dev \
+            --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
             --certificate-oidc-issuer=https://token.actions.githubusercontent.com
 
       - name: Run Package build
@@ -87,7 +87,7 @@ jobs:
           image_url=`yq e '.spec.template.spec.fetch[0].imgpkgBundle.image' release/package.yml`
           cosign verify \
             $image_url \
-            --certificate-identity-regexp=https://github.com/carvel-dev \
+            --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
             --certificate-oidc-issuer=https://token.actions.githubusercontent.com
 
       - name: Add to formatted checksum
@@ -109,7 +109,7 @@ jobs:
           cosign verify-blob \
             --cert release/checksums.txt.pem \
             --signature release/checksums.txt.sig \
-            --certificate-identity-regexp=https://github.com/carvel-dev \
+            --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
             --certificate-oidc-issuer=https://token.actions.githubusercontent.com ./tmp/checksums.txt
 
       - name: Create release draft and upload release yaml
@@ -186,3 +186,79 @@ jobs:
           ${{steps.get-checksums-from-draft-release.outputs.result}}
           EOF
           )
+
+      - name: Updating release notes
+        run: |
+          RELEASE_TAG=$(git describe --tags --abbrev=0)
+          KAPP_CONTROLLER_IMAGE=$(yq e '.spec.template.spec.containers[] | select(.name == "kapp-controller") | .image' release/release.yml)
+          KAPP_CONTROLLER_PACKAGE_BUNDLE_IMAGE=$(yq e '.spec.template.spec.fetch[0].imgpkgBundle.image' release/package.yml)
+
+          RELEASE_NOTES="
+          ### Verify checksums file signature
+
+          The checksums file provided within the artifacts attached to this release is signed using [Cosign](https://docs.sigstore.dev/cosign/overview/) with GitHub OIDC. To validate the signature of this file, run the following commands:
+
+          \`\`\`shell
+          # Download the checksums file, certificate, and signature
+          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/$RELEASE_TAG/checksums.txt
+          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/$RELEASE_TAG/checksums.txt.pem
+          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/$RELEASE_TAG/checksums.txt.sig
+
+          # Verify the checksums file
+          cosign verify-blob checksums.txt \
+          --certificate checksums.txt.pem \
+          --signature checksums.txt.sig \
+          --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
+          --certificate-oidc-issuer=https://token.actions.githubusercontent.com 
+          \`\`\`
+
+          ### Verify binary integrity
+
+          To verify the integrity of the downloaded binary, you can utilize the checksums file after having validated its signature. For instance, if you are using Linux on an AMD64 architecture:
+
+          \`\`\`shell
+          # Download the binary
+          curl -LO https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/$RELEASE_TAG/kctrl-linux-amd64
+
+          # Verify the binary using the checksums file
+          sha256sum -c checksums.txt --ignore-missing
+          \`\`\`
+
+          ## Container Images
+
+          Kapp-controller and Kapp-controller-package-bundle images are available in Github Container Registry.
+
+          ### OCI Image URLs
+
+          - $KAPP_CONTROLLER_IMAGE
+          - $KAPP_CONTROLLER_PACKAGE_BUNDLE_IMAGE
+
+          ### Verify container image signature
+
+          The container images are signed using [Cosign](https://docs.sigstore.dev/cosign/overview/) with GitHub OIDC. To validate the signature of OCI images, run the following commands:
+
+          \`\`\`shell
+          # Verifying kapp-controller image
+          cosign verify $KAPP_CONTROLLER_IMAGE \
+          --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
+          --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+          -o text
+
+          # Verifying kapp-controller-package-bundle image
+          cosign verify $KAPP_CONTROLLER_PACKAGE_BUNDLE_IMAGE \
+          --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
+          --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+          -o text \
+          \`\`\`
+          "
+          
+          echo "$RELEASE_NOTES" > release_notes.txt
+          gh release edit $RELEASE_TAG --notes-file release_notes.txt
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+
+
+

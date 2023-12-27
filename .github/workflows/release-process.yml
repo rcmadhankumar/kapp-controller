@@ -248,10 +248,12 @@ jobs:
           cosign verify $KAPP_CONTROLLER_PACKAGE_BUNDLE_IMAGE \
           --certificate-identity-regexp=https://github.com/${{ github.repository_owner }} \
           --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
-          -o text \
+          -o text
           \`\`\`
           "
-          
+
+          RELEASE_NOTES_UPLOADED=$(gh release view $RELEASE_TAG --json body | jq -r '.body')
+          RELEASE_NOTES+=$RELEASE_NOTES_UPLOADED
           echo "$RELEASE_NOTES" > release_notes.txt
           gh release edit $RELEASE_TAG --notes-file release_notes.txt
 

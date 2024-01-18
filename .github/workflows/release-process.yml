@@ -194,6 +194,8 @@ jobs:
           KAPP_CONTROLLER_PACKAGE_BUNDLE_IMAGE=$(yq e '.spec.template.spec.fetch[0].imgpkgBundle.image' release/package.yml)
 
           RELEASE_NOTES="
+          <details>
+          <summary><h2>Installation and signature verification</h2></summary>
           ### Verify checksums file signature
 
           The checksums file provided within the artifacts attached to this release is signed using [Cosign](https://docs.sigstore.dev/cosign/overview/) with GitHub OIDC. To validate the signature of this file, run the following commands:
@@ -250,6 +252,8 @@ jobs:
           --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
           -o text
           \`\`\`
+          </summary>
+          </details>
           "
 
           RELEASE_NOTES_UPLOADED=$(gh release view $RELEASE_TAG --json body | jq -r '.body')

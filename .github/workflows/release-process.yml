@@ -271,8 +271,7 @@ jobs:
 
           ### Verify container image signature
 
-          The container images are signed using [Cosign](https://docs.sigstore.dev/cosign/overview/) with GitHub OIDC.
-          To validate the signature of OCI images, run the following commands:
+          The container images are signed using [Cosign](https://docs.sigstore.dev/cosign/overview/) with GitHub OIDC. To validate the signature of OCI images, run the following commands:
 
           \`\`\`shell
           # Verifying kapp-controller image
